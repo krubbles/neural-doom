@@ -1,0 +1,12 @@
+# Ordinary functions have one shared body and a bounded runtime call stack.
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+# Inline functions are expanded into their callers and do not push a frame.
+inline def pair(x, y):
+    return x + y, x * y
+
+result = factorial(5)
+outa, outb = pair(result, 2)

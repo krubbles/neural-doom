@@ -1,0 +1,7 @@
+# A backward jump within one invocation; the compilation budget must cover it.
+remaining = 4
+again:
+total = total + remaining
+remaining = remaining + -1
+if remaining > 0 goto again
+return

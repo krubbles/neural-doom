@@ -1,0 +1,9 @@
+# One call advances the persistent state once.
+count = count + 1
+remaining = count + -5
+if remaining > 0 goto reset
+return
+reset:
+count = 0
+cycles = cycles + 1
+return

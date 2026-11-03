@@ -1,0 +1,203 @@
+# A 64x48 first-person gallery shooter. One invocation simulates and draws a frame.
+# Inputs: forward, strafe, turn, fire. Persistent inputs: player_x/y, dir_x/y,
+# alive[3], ammo, cooldown. Output: frame[3072], kills, cleared, shot.
+# Geometry, collision, visibility, shooting and every pixel execute as NN weights.
+# Rows 0..39 are the view; rows 40..47 are the neural status bar.
+array frame[3072]
+array alive[3]
+
+inline def clip(x):
+    return relu(x) - relu(x - 1)
+
+# A narrow continuous edge for geometry, rather than a source-language branch.
+inline def edge(x):
+    return clip(x * 16384)
+
+inline def solid(x, y):
+    borders = edge(1 - x) + edge(x - 7) + edge(1 - y) + edge(y - 7)
+    pillar_a = edge(x - 2.3) * edge(3.3 - x) * edge(y - 3.1) * edge(4.1 - y)
+    pillar_b = edge(x - 5.0) * edge(5.7 - x) * edge(y - 2.4) * edge(3.4 - y)
+    return clip(borders + pillar_a + pillar_b)
+
+inline def target(x, y, cx, cy):
+    return edge(x - cx + 0.38) * edge(cx + 0.38 - x) * edge(y - cy + 0.38) * edge(cy + 0.38 - y)
+
+inline def blocked(x, y):
+    return clip(solid(x + 0.17, y) + solid(x - 0.17, y) + solid(x, y + 0.17) + solid(x, y - 0.17))
+
+inline def aim():
+    remaining = 1
+    hit_a = 0
+    hit_b = 0
+    hit_c = 0
+    for s in range(32):
+        x = player_x + dir_x * ((s + 1) * (s + 1) * 0.005859375)
+        y = player_y + dir_y * ((s + 1) * (s + 1) * 0.005859375)
+        remaining *= 1 - solid(x, y)
+        a = target(x, y, 4, 2.2) * alive[0]
+        b = target(x, y, 6, 5.4) * alive[1]
+        c = target(x, y, 1.8, 3.0) * alive[2]
+        hit_a += remaining * a
+        remaining *= 1 - a
+        hit_b += remaining * b
+        remaining *= 1 - b
+        hit_c += remaining * c
+        remaining *= 1 - c
+    return hit_a, hit_b, hit_c
+
+# Rotation uses a fixed small angle. Inputs are -1, 0, or 1.
+rotation_cos = 1 - turn * turn * 0.0049958347219742
+rotation_sin = turn * 0.09983341664682815
+old_dir_x = dir_x
+dir_x = old_dir_x * rotation_cos - dir_y * rotation_sin
+dir_y = old_dir_x * rotation_sin + dir_y * rotation_cos
+right_x = -dir_y
+right_y = dir_x
+
+move_x = (dir_x * forward + right_x * strafe) * 0.12
+move_y = (dir_y * forward + right_y * strafe) * 0.12
+player_x += move_x * (1 - blocked(player_x + move_x, player_y))
+player_y += move_y * (1 - blocked(player_x, player_y + move_y))
+
+cooldown = relu(cooldown - 1)
+shot = fire * edge(0.5 - cooldown) * edge(ammo - 0.5)
+ammo -= shot
+cooldown += shot * 5
+hit_a, hit_b, hit_c = aim()
+alive[0] = relu(alive[0] - shot * hit_a * 2)
+alive[1] = relu(alive[1] - shot * hit_b * 2)
+alive[2] = relu(alive[2] - shot * hit_c * 2)
+kills = 3 - edge(alive[0]) - edge(alive[1]) - edge(alive[2])
+cleared = 1 - edge(alive[0] + alive[1] + alive[2])
+flash = clip(cooldown - 3)
+
+# Pixels use a small display palette. Everything below is statically unrolled.
+for row in range(40):
+    for col in range(64):
+        if row < 20:
+            frame[row * 64 + col] = 1
+        else:
+            frame[row * 64 + col] = 2
+
+for col in range(64):
+    ray_x = dir_x + right_x * ((col * 2 - 63) * 0.0103125)
+    ray_y = dir_y + right_y * ((col * 2 - 63) * 0.0103125)
+    wall_remaining = 1
+    enemy_remaining = 1
+    wall_distance = 6
+    enemy_distance = 6
+    wall_gap = 0
+    enemy_gap = 0
+    # Quadratic spacing concentrates 32 samples near the camera, out to 6 units.
+    for s in range(32):
+        x = player_x + ray_x * ((s + 1) * (s + 1) * 0.005859375)
+        y = player_y + ray_y * ((s + 1) * (s + 1) * 0.005859375)
+        wall = solid(x, y)
+        wall_hit = wall_remaining * wall
+        wall_remaining *= 1 - wall
+        wall_distance += wall_hit * ((s + 1) * (s + 1) * 0.005859375 - 6)
+        wall_gap += wall_hit * ((2 * s + 1) * 0.005859375)
+        a = target(x, y, 4, 2.2) * alive[0]
+        b = target(x, y, 6, 5.4) * alive[1]
+        c = target(x, y, 1.8, 3.0) * alive[2]
+        enemy = clip(a + b + c)
+        enemy_hit = enemy_remaining * enemy
+        enemy_remaining *= 1 - enemy
+        enemy_distance += enemy_hit * ((s + 1) * (s + 1) * 0.005859375 - 6)
+        enemy_gap += enemy_hit * ((2 * s + 1) * 0.005859375)
+
+    # Bisect each first-hit interval five times; silhouettes use the refined
+    # distance, rather than one of the 32 coarse sample distances.
+    for refinement in range(5):
+        wall_gap *= 0.5
+        x = player_x + ray_x * (wall_distance - wall_gap)
+        y = player_y + ray_y * (wall_distance - wall_gap)
+        wall_distance -= wall_gap * solid(x, y)
+        enemy_gap *= 0.5
+        x = player_x + ray_x * (enemy_distance - enemy_gap)
+        y = player_y + ray_y * (enemy_distance - enemy_gap)
+        enemy = clip(target(x, y, 4, 2.2) * alive[0] + target(x, y, 6, 5.4) * alive[1] + target(x, y, 1.8, 3.0) * alive[2])
+        enemy_distance -= enemy_gap * enemy
+
+    enemy_visible = (1 - enemy_remaining) * edge(wall_distance - enemy_distance)
+    wall_shade = 10.4 - wall_distance * 1.0666666666666667
+    enemy_shade = 14.56 - enemy_distance * 0.4266666666666667
+    for row in range(40):
+        if row < 20:
+            extent = 19.5 - row
+        else:
+            extent = row - 19.5
+        wall_pixel = (1 - wall_remaining) * edge(16 - extent * wall_distance)
+        pixel = frame[row * 64 + col]
+        pixel += wall_pixel * (wall_shade - pixel)
+        enemy_pixel = enemy_visible * edge(8 + (row - 19.5) * enemy_distance) * edge(16 - (row - 19.5) * enemy_distance)
+        frame[row * 64 + col] = pixel + enemy_pixel * (enemy_shade - pixel)
+
+# The weapon, crosshair, and muzzle flash are also generated by the network.
+for row in range(40):
+    for col in range(64):
+        if row >= 32 and col >= 26 and col <= 37:
+            frame[row * 64 + col] = 16
+        if row >= 30 and col >= 28 and col <= 35:
+            frame[row * 64 + col] = 17
+        if row >= 26 and row <= 35 and col >= 30 and col <= 33:
+            frame[row * 64 + col] = 18
+        if (row >= 18 and row <= 19 and ((col >= 26 and col <= 27) or (col >= 36 and col <= 37))) or (col >= 30 and col <= 31 and ((row >= 12 and row <= 13) or (row >= 26 and row <= 27))):
+            frame[row * 64 + col] = 19
+        if row >= 22 and row <= 27 and col >= 28 and col <= 35:
+            frame[row * 64 + col] = frame[row * 64 + col] * (1 - flash) + 20 * flash
+
+# The status bar is part of the neural framebuffer, including all text.
+for row in range(40, 48):
+    for col in range(64):
+        if row == 40:
+            frame[row * 64 + col] = 22
+        else:
+            frame[row * 64 + col] = 21
+
+# Decimal digits without division, remainder, or host-side formatting.
+hud_ink = 1 - cleared
+ammo_tens = edge(ammo - 9.5) + edge(ammo - 19.5) + edge(ammo - 29.5) + edge(ammo - 39.5) + edge(ammo - 49.5) + edge(ammo - 59.5)
+ammo_ones = ammo - ammo_tens * 10
+enemies = 3 - kills
+for digit in range(10):
+    tens_ink = relu(1 - relu(ammo_tens - digit) - relu(digit - ammo_tens)) * hud_ink
+    ones_ink = relu(1 - relu(ammo_ones - digit) - relu(digit - ammo_ones)) * hud_ink
+    enemy_ink = relu(1 - relu(enemies - digit) - relu(digit - enemies)) * hud_ink
+    for gy in range(5):
+        for gx in range(3):
+            # Seven segments rasterized into a 3x5 digit; all geometry is static.
+            if (gy == 0 and (digit == 0 or digit == 2 or digit == 3 or digit == 5 or digit == 6 or digit == 7 or digit == 8 or digit == 9)) or (gy == 2 and (digit == 2 or digit == 3 or digit == 4 or digit == 5 or digit == 6 or digit == 8 or digit == 9)) or (gy == 4 and (digit == 0 or digit == 2 or digit == 3 or digit == 5 or digit == 6 or digit == 8 or digit == 9)) or (gx == 0 and gy <= 2 and (digit == 0 or digit == 4 or digit == 5 or digit == 6 or digit == 8 or digit == 9)) or (gx == 2 and gy <= 2 and (digit == 0 or digit == 1 or digit == 2 or digit == 3 or digit == 4 or digit == 7 or digit == 8 or digit == 9)) or (gx == 0 and gy >= 2 and (digit == 0 or digit == 2 or digit == 6 or digit == 8)) or (gx == 2 and gy >= 2 and (digit == 0 or digit == 1 or digit == 3 or digit == 4 or digit == 5 or digit == 6 or digit == 7 or digit == 8 or digit == 9)):
+                frame[(42 + gy) * 64 + 22 + gx] += tens_ink * (23 - 21)
+                frame[(42 + gy) * 64 + 26 + gx] += ones_ink * (23 - 21)
+                if digit < 4:
+                    frame[(42 + gy) * 64 + 59 + gx] += enemy_ink * (24 - 21)
+
+# Each counter gets half the bar, with generous gaps before the numbers.
+for gy in range(5):
+    for gx in range(3):
+        if gy == 0 or gy == 2 or gx == 0 or gx == 2:
+            frame[(42 + gy) * 64 + 2 + gx] += hud_ink * (19 - 21) # A
+        if gx == 0 or gx == 2 or (gy == 1 and gx == 1):
+            frame[(42 + gy) * 64 + 6 + gx] += hud_ink * (19 - 21) # M
+            frame[(42 + gy) * 64 + 10 + gx] += hud_ink * (19 - 21) # M
+            frame[(42 + gy) * 64 + 46 + gx] += hud_ink * (24 - 21) # M
+        if gy == 0 or gy == 4 or gx == 0 or gx == 2:
+            frame[(42 + gy) * 64 + 14 + gx] += hud_ink * (19 - 21) # O
+        if gx == 0 or gy == 0 or gy == 2 or gy == 4:
+            frame[(42 + gy) * 64 + 34 + gx] += hud_ink * (24 - 21) # E
+            frame[(42 + gy) * 64 + 42 + gx] += hud_ink * (24 - 21) # E
+        if gx == 0 or gx == 2 or (gy >= 1 and gy <= 3):
+            frame[(42 + gy) * 64 + 38 + gx] += hud_ink * (24 - 21) # N
+        if (gy <= 1 and (gx == 0 or gx == 2)) or (gy >= 2 and gx == 1):
+            frame[(42 + gy) * 64 + 50 + gx] += hud_ink * (24 - 21) # Y
+
+# Victory replaces both counters with a centered WIN on the cleared bar.
+for gy in range(5):
+    for gx in range(5):
+        if (gy < 4 and (gx == 0 or gx == 4 or (gy >= 2 and gx == 2))) or (gy == 4 and (gx == 1 or gx == 3)):
+            frame[(42 + gy) * 64 + 23 + gx] += cleared * (25 - 21) # W
+        if gx < 3 and (gy == 0 or gy == 4 or gx == 1):
+            frame[(42 + gy) * 64 + 30 + gx] += cleared * (25 - 21) # I
+        if gx == 0 or gx == 4 or gx == gy:
+            frame[(42 + gy) * 64 + 35 + gx] += cleared * (25 - 21) # N

@@ -1,0 +1,6 @@
+# Start with x = 0.25. Repeated network calls follow the logistic map.
+complement = x * -1
+complement = complement + 1
+product = x * complement
+x = product * 3.5
+return

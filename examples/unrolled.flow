@@ -1,0 +1,9 @@
+# The loop bounds and indices disappear into compile-time constants.
+array squares[8]
+for i in range(8):
+    squares[i] = i * i
+
+# A reduction still has data dependencies, even after expansion.
+total = 0
+for i in range(7, -1, -1):
+    total += squares[i]

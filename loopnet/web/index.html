@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <meta name="description" content="A friendly game of Connect Four, powered by a compiled ReGLU neural network.">
+  <title>Four — a little friendly competition</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%233551d3'/%3E%3Ccircle cx='14' cy='14' r='5' fill='%23f17c67'/%3E%3Ccircle cx='26' cy='14' r='5' fill='%23efc15c'/%3E%3Ccircle cx='14' cy='26' r='5' fill='%23efc15c'/%3E%3Ccircle cx='26' cy='26' r='5' fill='%23f17c67'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body data-player="1">
+  <div class="page">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Four home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>four<span class="brand-period">.</span></span>
+      </a>
+      <span class="mode"><span aria-hidden="true">●</span> Two players, one screen</span>
+      <button id="help" class="help-button" aria-haspopup="dialog">
+        <span>How to play</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9a2.5 2.5 0 0 1 4.8 1c0 2-2.4 2-2.4 4M12 17h.01"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="game-title">
+        <div>
+          <p class="eyebrow"><span class="small-line"></span> A LITTLE FRIENDLY COMPETITION</p>
+          <h1 id="game-title">Connect <span>four.</span></h1>
+          <p class="subtitle">Pick a column. Drop a disc. Make your connection.</p>
+        </div>
+        <span class="edition"><span>THE ORIGINAL RULES</span><strong>7 columns. 6 rows. Your move.</strong></span>
+      </section>
+
+      <div class="game-layout">
+        <section class="board-section" aria-label="Game board">
+          <div id="previews" class="previews" aria-hidden="true"></div>
+          <div id="board" class="board" role="group" aria-label="Connect Four board">
+            <div id="cells" class="cells" aria-hidden="true"></div>
+            <div id="columns" class="columns"></div>
+          </div>
+          <div class="board-stand" aria-hidden="true"><span></span><span></span></div>
+          <div class="column-keys" aria-hidden="true"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><kbd>5</kbd><kbd>6</kbd><kbd>7</kbd></div>
+          <p class="keyboard-tip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg> Click a column or use keys <strong>1–7</strong></p>
+        </section>
+
+        <aside class="control-panel" aria-label="Game controls">
+          <div class="status-icon" aria-hidden="true"><span id="status-dot"></span><span class="status-orbit"></span></div>
+          <p class="eyebrow" id="status-label">PULL UP A CHAIR</p>
+          <h2 id="headline" aria-live="polite" aria-atomic="true">Setting the board…</h2>
+          <p id="detail" class="detail">Just a moment. A good game awaits.</p>
+
+          <div class="players">
+            <div class="player-card" id="player-1"><span class="player-disc coral" aria-hidden="true"></span><span><strong>Player 1</strong><small>Coral</small></span><span class="player-active" aria-hidden="true"></span></div>
+            <div class="player-card" id="player-2"><span class="player-disc gold" aria-hidden="true"></span><span><strong>Player 2</strong><small>Golden</small></span><span class="player-active" aria-hidden="true"></span></div>
+          </div>
+
+          <div class="progress-section"><div class="progress-label"><span>Discs on the board</span><strong><span id="move-count">0</span><span class="progress-total"> / 42</span></strong></div><div class="progress-track"><span id="progress"></span></div></div>
+
+          <div class="actions">
+            <button id="reset" class="primary-button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg> New game</button>
+            <button id="undo" class="secondary-button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5-5 5 5 5M3 10h10a7 7 0 0 1 7 7v2"/></svg> Undo last move</button>
+          </div>
+          <p id="feedback" class="feedback" role="alert" aria-live="assertive"></p>
+          <div class="panel-note"><span class="note-spark" aria-hidden="true">✳</span> Four in a row. A moment of glory.</div>
+        </aside>
+      </div>
+    </main>
+
+    <footer><span><span class="footer-dot"></span> Better together. No sign-up, no rush.</span><a href="/source" target="_blank" rel="noopener">Rules written in LoopNet <span aria-hidden="true">↗</span></a></footer>
+  </div>
+
+  <dialog id="rules" aria-labelledby="rules-title">
+    <button id="close-help" class="close-button" aria-label="Close instructions">×</button>
+    <span class="dialog-number">01 — THE CLASSIC</span>
+    <h2 id="rules-title">A simple connection.</h2>
+    <p>Two players take turns dropping a disc into one of seven columns. Each disc falls to the lowest empty space.</p>
+    <p>Connect <strong>four of your discs</strong> horizontally, vertically, or diagonally to win. If the board fills up first, it’s a draw.</p>
+    <div class="rules-discs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <p class="rules-shortcut">Play with keys <strong>1–7</strong>. <strong>U</strong> undoes a move. No timer—take your time.</p>
+    <button id="lets-play" class="primary-button">Let’s play <span aria-hidden="true">↗</span></button>
+  </dialog>
+</body>
+</html>

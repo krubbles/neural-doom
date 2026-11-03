@@ -1,0 +1,14 @@
+# Global, zero-initialized cells. The declaration never resets their contents.
+array bins[4]
+
+# Each call increments one bin, then advances to the next one.
+bins[i] = bins[i] + 1
+last = bins[i]
+i = i + 1
+remaining = i + -3
+if remaining > 0 goto wrap
+return
+
+wrap:
+i = 0
+return

@@ -1,0 +1,9 @@
+array squares[4]
+
+def square(x):
+    return x * x
+
+i = 0
+while i < 4:
+    squares[i] = square(i)
+    i = i + 1

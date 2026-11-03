@@ -1,0 +1,76 @@
+# A complete move transaction. All persistent game data is in float globals.
+# Board cells are column-major: board[column * 6 + row], row 0 at the bottom.
+# Input: column (0..6). Outputs: accepted, error, player, winner, finished.
+array board[42]
+array heights[7]
+array winning[42]
+
+accepted = 0
+error = 0
+if player == 0:
+    player = 1
+if finished > 0:
+    error = 3
+    return
+if column < 0 or column > 6:
+    error = 1
+    return
+if heights[column] >= 6:
+    error = 2
+    return
+
+row = heights[column]
+board[column * 6 + row] = player
+heights[column] += 1
+moves += 1
+accepted = 1
+last_column = column
+last_row = row
+
+# Count matching discs in both directions on all four axes through the new disc.
+for direction in range(4):
+    if direction == 0:
+        dc = 1
+        dr = 0
+    elif direction == 1:
+        dc = 0
+        dr = 1
+    elif direction == 2:
+        dc = 1
+        dr = 1
+    else:
+        dc = 1
+        dr = -1
+
+    count = 1
+    for sign in range(1, -2, -2):
+        c = column + dc * sign
+        r = row + dr * sign
+        while c >= 0 and c < 7 and r >= 0 and r < 6:
+            if board[c * 6 + r] != player:
+                break
+            count += 1
+            c += dc * sign
+            r += dr * sign
+
+    if count >= 4:
+        winner = player
+        finished = 1
+        # The negative scan ended just beyond the start of the winning run.
+        c += dc
+        r += dr
+        marked = 0
+        while marked < count:
+            winning[c * 6 + r] = 1
+            c += dc
+            r += dr
+            marked += 1
+        break
+
+if finished == 0:
+    if moves >= 42:
+        finished = 1
+    else:
+        player = 3 - player
+# The terminate neuron ends this move transaction. The next move starts a new
+# invocation with board/heights/winning/player/moves/finished/winner preserved.

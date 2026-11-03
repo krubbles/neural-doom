@@ -1,0 +1,11 @@
+# Function calls return multiple floats. Each invocation has its own local slots.
+def pair(x, y):
+    return (x + y, x * y)
+
+remaining = 4
+total = 0
+while remaining > 0:
+    (outa, outb) = pair(remaining, 2)
+    total = total + outa + outb
+    remaining = remaining - 1
+# Falling off the top level sets the persistent terminate neuron to 1.

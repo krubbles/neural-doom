@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#000000"><title>doom</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <section id="neurons" aria-labelledby="neurons-label">
+    <canvas id="atlas-map" width="1" height="1" aria-label="Live neurons: the first 60 activations of each layer"></canvas>
+    <h2 id="neurons-label">neurons</h2>
+  </section>
+  <main>
+    <div class="game-column">
+    <div class="panels">
+      <fieldset class="panel"><legend>doom</legend><canvas id="game" width="64" height="48" tabindex="0" aria-busy="true" aria-label="Doom. W and S move, A and D strafe, arrow keys or Q and E turn, space fires."></canvas><span id="loading" role="status">building network…</span></fieldset>
+    </div>
+    <div class="toolbar">
+      <div class="controls" aria-label="Game controls">
+        <div class="control-group"><span>move</span><button data-code="KeyW" aria-label="Move forward" disabled>W</button><button data-code="KeyS" aria-label="Move backward" disabled>S</button></div>
+        <div class="control-group"><span>strafe</span><button data-code="KeyA" aria-label="Strafe left" disabled>A</button><button data-code="KeyD" aria-label="Strafe right" disabled>D</button></div>
+        <div class="control-group"><span>turn</span><button data-code="KeyQ" aria-label="Turn left" disabled>←</button><button data-code="KeyE" aria-label="Turn right" disabled>→</button></div>
+        <div class="control-group"><span>fire</span><button data-code="Space" aria-label="Fire" disabled>space</button></div>
+      </div>
+      <div class="actions"><button id="reset" disabled>reset</button><button id="twitter-mode" aria-pressed="false" disabled>twitter mode</button></div>
+    </div>
+    <p id="error" role="alert" hidden></p>
+    </div>
+    <aside id="description" aria-label="About neural Doom">
+      <p>This is DOOM implemented entirely in the weights of a neural network. The network was not trained. It is a <span id="parameter-count" title="Stored sparse weights and biases, including zero biases">…</span> parameter, <span id="layer-count">…</span> layer RNN using the ReGLU activation function.</p>
+      <p>It works by compiling a custom low-level programming language into a neural network. You can read the code for it <a href="./doom.flow.txt" target="_blank" rel="noopener">here</a>.</p>
+      <p>Made by <a href="https://twitter.com/Krubbled" target="_blank" rel="noopener">@Krubbled</a> on Twitter.</p>
+    </aside>
+  </main>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
